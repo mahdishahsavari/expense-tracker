@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import EmojiPicker from "emoji-picker-react";
-import { toast } from "sonner";
-import LetterPullup from "./LetterPullup";
-import SlightFlip from "./FlipText";
-import { db } from "@/utils/dbConfig";
-import { Budgets } from "@/utils/schema";
+import { PenBox } from "lucide-react";
+import LetterPullup from "../Budgets/LetterPullup";
+import SlightFlip from "../Budgets/FlipText";
 import {
   Dialog,
   DialogClose,
@@ -20,34 +18,47 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { db } from "@/utils/dbConfig";
+import { Budgets } from "@/utils/schema";
+import { eq } from "drizzle-orm";
+import { toast } from "sonner";
 
-function CreateBudget({ refreshData }: { refreshData: any }) {
-  const [emojiIcon, setEmojiIcon] = useState<string | null>("😊");
+function EditBudget({
+  budgetInfo,
+  refreshData,
+}: {
+  budgetInfo: any;
+  refreshData: any;
+}) {
+  const [emojiIcon, setEmojiIcon] = useState<string | null>(budgetInfo?.icon);
   const [openEmojiPicker, setOpenEmojiPicker] = useState<boolean>(false);
-  const [name, setName] = useState<string>("");
-  const [amount, setAmount] = useState<string>("");
+  const [name, setName] = useState<string>();
+  const [amount, setAmount] = useState<string>();
 
   const { user } = useUser();
 
-  /**
-   * create new budget function with drizzleORM
-   */
-  const onCreateBudget = async () => {
+  useEffect(() => {
+    if (budgetInfo) {
+      setEmojiIcon(budgetInfo?.icon);
+      setName(budgetInfo?.name);
+      setAmount(budgetInfo?.amount);
+    }
+  }, [budgetInfo]);
+
+  const onUpdateBudget = async () => {
     const result = await db
-      .insert(Budgets)
-      .values({
+      .update(Budgets)
+      .set({
         name: name,
         amount: amount,
         icon: emojiIcon,
-        createdBy: user?.primaryEmailAddress?.emailAddress!,
       })
-      .returning({
-        insertedId: Budgets.id,
-      });
+      .where(eq(Budgets.id, budgetInfo.id))
+      .returning();
 
     if (result) {
       refreshData();
-      toast("New Budget Created Successfully 🥳");
+      toast("Budget Updated Successfully!");
     }
   };
 
@@ -55,15 +66,15 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
     <div>
       <Dialog>
         <DialogTrigger asChild>
-          <div className="flex flex-col items-center bg-muted p-10 rounded-md border-2 border-dashed cursor-pointer hover:shadow-md z-10">
-            <h2 className="text-3xl">+</h2>
-            <h2>Create New Budget</h2>
-          </div>
+          <Button className="flex gap-2 dark:bg-lime-600 dark:text-white">
+            <PenBox className="h-4 w-4" />
+            Edit
+          </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              <LetterPullup words="Create New Budget" delay={0.08} />
+              <LetterPullup words="Edit Your Budget" delay={0.08} />
             </DialogTitle>
             <DialogDescription>
               <div className="mt-5">
@@ -91,6 +102,7 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
                       />
                     </h2>
                     <Input
+                      defaultValue={budgetInfo?.name}
                       placeholder="e.g. Home Decor"
                       onChange={(e) => setName(e.target.value)}
                     />
@@ -103,6 +115,7 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
                       />
                     </h2>
                     <Input
+                      defaultValue={budgetInfo?.amount}
                       type="number"
                       placeholder="e.g. $5000"
                       onChange={(e) => setAmount(e.target.value)}
@@ -116,7 +129,7 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
             <DialogClose asChild>
               <Button
                 disabled={!(name && amount)}
-                onClick={() => onCreateBudget()}
+                onClick={() => onUpdateBudget()}
                 className="cursor-pointer mt-5 group relative inline-flex items-center overflow-hidden rounded-2xl bg-primary px-8 py-3 text-white focus:outline-none focus:ring active:bg-primary"
               >
                 <span className="absolute -start-full transition-all group-hover:start-4">
@@ -138,7 +151,7 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
 
                 <span className="text-sm font-medium transition-all group-hover:ms-4">
                   {" "}
-                  Create Budget{" "}
+                  Update Budget{" "}
                 </span>
               </Button>
             </DialogClose>
@@ -149,4 +162,4 @@ function CreateBudget({ refreshData }: { refreshData: any }) {
   );
 }
 
-export default CreateBudget;
+export default EditBudget;
